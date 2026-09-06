@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch_SlipStream
-// @namespace    https://github.com/hoernzilla/Twitch-SlipStream
-// @version      12.4.3
+// @namespace    https://github.com/hoernzilla/SlipStream-UserScript/
+// @version      12.4.4
 // @description  Mehrere Lösungen zum Blockieren von Twitch-Werbung
 // @updateURL    https://github.com/hoernzilla/SlipStream-UserScript/raw/main/Twitch_SlipStream.user.js
 // @downloadURL  https://github.com/hoernzilla/SlipStream-UserScript/raw/main/Twitch_SlipStream.user.js
