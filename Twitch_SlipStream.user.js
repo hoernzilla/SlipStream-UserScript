@@ -5,7 +5,7 @@
 // @description  Mehrere Lösungen zum Blockieren von Twitch-Werbung
 // @updateURL    https://github.com/hoernzilla/Twitch-SlipStream/raw/main/Twitch_SlipStream.user.js
 // @downloadURL  https://github.com/hoernzilla/Twitch-SlipStream/raw/main/Twitch_SlipStream.user.js
-// @author       https://github.com/cleanlock/VideoAdBlockForTwitch#credits
+// @author       BjOOgle
 // @match        *://*.twitch.tv/*
 // @run-at       document-start
 // @grant        none
