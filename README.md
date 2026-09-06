@@ -1,6 +1,6 @@
 Project: Twitch_SlipStream
 
-Twitch_SlipStream (vaft) ist ein hochentwickeltes Userscript zur automatischen 
+Twitch_SlipStream ist ein hochentwickeltes Userscript zur automatischen 
 und lautlosen Blockierung von Twitch-Videowerbung (Prerolls & Midrolls).
 
 ---------------------------------------------------------------------------------------------------
