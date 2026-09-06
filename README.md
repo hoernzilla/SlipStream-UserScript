@@ -17,7 +17,7 @@ und lautlosen Blockierung von Twitch-Videowerbung (Prerolls & Midrolls).
 ---------------------------------------------------------------------------------------------------
 
     Features: 
-        🚀 backupSwapFirst-Technologie: 
+      🚀 BackupSwapFirst-Technologie: 
       - Kein lokales Herausschneiden im Video-Player nötig – verhindert Ladekreise und Player-Abstürze.
       
       🖥️ Nested-Frame-Filter:
@@ -72,7 +72,7 @@ Installationsanleitung (Desktop / Google Chrome):
 ---------------------------------------------------------------------------------------------------
 
 
-Schritt-für-Schritt-Anleitung für iOS (Safari) mit Tampermonkey: 
+Schritt-für-Schritt-Anleitung für iOS (Safari) mit Tampermonkey:
 ---------------------------------------------------------------------------------------------------
   - Da Apple im normalen Safari-Browser die tiefe Manipulation von Video-Netzwerk-Workern stark einschränkt,
   ist die Nutzung der offiziellen Tampermonkey-App auf dem iPhone der stabilste Weg,
