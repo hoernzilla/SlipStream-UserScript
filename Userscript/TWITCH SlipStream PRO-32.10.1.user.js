@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         TWITCH SlipStream PRO
 // @namespace    https://github.com/hoernzilla/SlipStream-UserScript/
-// @version      32.10.1
+// @version      32.10.2
 // @description  "Twitch AD-Blocker" & "SUB-Only VOD Bypass"
 // @author       BjOOgle
-// @updateURL    https://github.com/hoernzilla/SlipStream-UserScript/
-// @downloadURL  https://github.com/hoernzilla/SlipStream-UserScript/
+// @updateURL    https://github.com/hoernzilla/SlipStream-UserScript/blob/main/Userscript/TWITCH%20SlipStream%20PRO-32.10.1.user.js
+// @downloadURL  https://github.com/hoernzilla/SlipStream-UserScript/blob/main/Userscript/TWITCH%20SlipStream%20PRO-32.10.1.user.js
 // @match        *://*.twitch.tv/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.6.15/hls.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/plyr/3.8.4/plyr.min.js
