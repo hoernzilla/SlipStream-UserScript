@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TWITCH SlipStream PRO
 // @namespace    https://github.com/hoernzilla/SlipStream-UserScript/
-// @version      32.10.2
+// @version      32.11.2
 // @description  "Twitch AD-Blocker" & "SUB-Only VOD Bypass"
 // @author       BjOOgle
 // @updateURL    https://github.com/hoernzilla/SlipStream-UserScript/blob/main/Userscript/TWITCH%20SlipStream%20PRO-32.10.1.user.js
@@ -276,13 +276,13 @@
 
         const gear = document.createElement('div');
         gear.id = 'tt-gear-btn';
-        gear.title = 'Twitch Tools Einstellungen – zum Verschieben gedrückt halten';
+        gear.title = 'Twitch SlipStream Einstellungen – zum Verschieben gedrückt halten';
         gear.textContent = '\u2699';
 
         const panel = document.createElement('div');
         panel.id = 'tt-panel';
         panel.innerHTML =
-            '<div class="tt-header">Twitch Tools</div>' +
+            '<div class="tt-header">Twitch SlipStream</div>' +
             '<div class="tt-row">' +
                 '<span class="tt-label">Werbeblocker</span>' +
                 '<label class="tt-switch">' +
@@ -506,7 +506,7 @@
         if (window.__ttReloadPromptShown) return;
         window.__ttReloadPromptShown = true;
         setTimeout(function() {
-            const reload = confirm('Twitch Tools: Einstellung geändert. Seite jetzt neu laden, damit sie wirkt?');
+            const reload = confirm('Twitch SlipStream: Einstellung geändert. Seite jetzt neu laden, damit sie wirkt?');
             if (reload) location.reload();
             window.__ttReloadPromptShown = false;
         }, 50);
@@ -531,7 +531,7 @@
 // eigenem Player-Code greifen (wichtig für die Ad-Blocking-Funktion).
 // ============================================================================
 (function() {
-    // Steuerzentrum-Guard: Ad-Blocker nur starten, wenn in den Twitch Tools Einstellungen aktiviert.
+    // Steuerzentrum-Guard: Ad-Blocker nur starten, wenn in den Twitch SlipStream Einstellungen aktiviert.
     try {
         if (window.__twitchToolsSettings && !window.__twitchToolsSettings.isAdBlockEnabled()) {
             console.log('[AD DEBUG] Ad-Blocker per Twitch-Tools-Einstellung deaktiviert — skip.');
@@ -4390,7 +4390,7 @@ function onNavigate(callback) {
 // VOD-Yoink-Code etwas geändert wurde.
 // ----------------------------------------------------------------------------
 function __yoinkInit() {
-  // Steuerzentrum-Guard: VOD Yoink nur starten, wenn in den Twitch Tools Einstellungen aktiviert.
+  // Steuerzentrum-Guard: VOD Yoink nur starten, wenn in den Twitch SlipStream Einstellungen aktiviert.
   try {
     if (window.__twitchToolsSettings && !window.__twitchToolsSettings.isVodYoinkEnabled()) {
       console.log('[Yoink] VOD Freischaltung per Twitch-Tools-Einstellung deaktiviert — skip.');
