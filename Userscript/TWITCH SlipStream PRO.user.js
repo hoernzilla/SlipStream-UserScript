@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TWITCH SlipStream PRO
 // @namespace    https://github.com/hoernzilla/SlipStream-UserScript/
-// @version      32.21.5
+// @version      32.21.7
 // @description  "Twitch AD-Blocker" & "SUB-Only VOD Bypass"
 // @author       BjOOgle
 // @updateURL    https://github.com/hoernzilla/SlipStream-UserScript/blob/main/Userscript/TWITCH%20SlipStream%20PRO.user.js
@@ -43,6 +43,11 @@
     let syncChannel = null;
     let uiState = loadUiState();
     let ui = null;
+    let reloadCooldownTimer = null;
+    let reloadCountdownTimer = null;
+    let reloadCountdownValue = 0;
+    const RELOAD_ACTION_COOLDOWN_MS = 3000;
+    const RELOAD_COUNTDOWN_SECONDS = 5;
 
     function loadSettings() {
         try {
@@ -235,6 +240,25 @@
                 border-bottom: 1px solid #2f2f35;
                 color: #efeff1;
             }
+            #tt-panel .tt-reload-status {
+                display: none;
+                margin: -2px 12px 8px;
+                padding: 6px 8px;
+                border: 1px solid #3a3a3d;
+                border-radius: 6px;
+                background: #26262c;
+                color: #adadb8;
+                font-size: 11px;
+                font-weight: 600;
+                line-height: 1.3;
+                text-align: center;
+            }
+            #tt-panel .tt-reload-status.tt-visible {
+                display: block;
+            }
+            #tt-panel .tt-reload-status strong {
+                color: #efeff1;
+            }
             #tt-help-btn {
                 width: 20px;
                 height: 20px;
@@ -375,6 +399,7 @@
                 '<span>Twitch SlipStream</span>' +
                 '<button type="button" id="tt-help-btn" aria-label="Schalter-Regeln">?</button>' +
             '</div>' +
+            '<div id="tt-reload-status" class="tt-reload-status" aria-live="polite"></div>' +
             '<div class="tt-row">' +
                 '<span class="tt-label">Werbeblocker</span>' +
                 '<label class="tt-switch">' +
@@ -419,7 +444,7 @@
         document.body.appendChild(panel);
         document.body.appendChild(helpPopup);
 
-        ui = { gear: gear, panel: panel, helpBtn: panel.querySelector('#tt-help-btn'), helpPopup: helpPopup };
+        ui = { gear: gear, panel: panel, helpBtn: panel.querySelector('#tt-help-btn'), helpPopup: helpPopup, reloadStatus: panel.querySelector('#tt-reload-status') };
         applyUiState();
 
         function positionHelpPopup() {
@@ -551,7 +576,6 @@
                 // Werbeblocker AN => VOD2 AUS.
                 setSetting('adBlockEnabled', true);
                 setSetting('playVodEnabled', false);
-                showMutualExclusionNotice('Der Werbeblocker wurde aktiviert – VOD2 wurde automatisch deaktiviert.');
             } else {
                 setSetting('adBlockEnabled', e.target.checked);
             }
@@ -563,7 +587,6 @@
                 // VOD1 darf mit dem Werbeblocker laufen, aber nicht mit VOD2.
                 setSetting('vodYoinkEnabled', true);
                 setSetting('playVodEnabled', false);
-                showMutualExclusionNotice('VOD1 aktiviert – VOD2 wurde automatisch deaktiviert. Der Werbeblocker bleibt aktiv.');
             } else {
                 setSetting('vodYoinkEnabled', false);
             }
@@ -576,7 +599,6 @@
                 setSetting('playVodEnabled', true);
                 setSetting('vodYoinkEnabled', false);
                 setSetting('adBlockEnabled', false);
-                showMutualExclusionNotice('VOD2 darf nur alleine verwendet werden – VOD1 und Werbeblocker wurden automatisch deaktiviert.');
             } else {
                 setSetting('playVodEnabled', false);
             }
@@ -651,57 +673,69 @@
         });
         window.addEventListener('resize', applyUiState);
     }
+    function clearReloadTimers() {
+        if (reloadCooldownTimer) {
+            clearTimeout(reloadCooldownTimer);
+            reloadCooldownTimer = null;
+        }
+        if (reloadCountdownTimer) {
+            clearInterval(reloadCountdownTimer);
+            reloadCountdownTimer = null;
+        }
+        reloadCountdownValue = 0;
+        updateReloadStatus('');
+    }
 
-    function showMutualExclusionNotice(message) {
-        const DURATION = 7500;
-        const existing = document.getElementById('tt-mutual-exclusion-notice');
-        if (existing) existing.remove();
+    function updateReloadStatus(message) {
+        if (!ui || !ui.reloadStatus) return;
+        if (!message) {
+            ui.reloadStatus.textContent = '';
+            ui.reloadStatus.classList.remove('tt-visible');
+            return;
+        }
+        ui.reloadStatus.innerHTML = message;
+        ui.reloadStatus.classList.add('tt-visible');
+    }
 
-        const notice = document.createElement('div');
-        notice.id = 'tt-mutual-exclusion-notice';
-        notice.textContent = message;
-        notice.style.cssText = [
-            'position:fixed',
-            'left:50%',
-            'top:50%',
-            'transform:translate(-50%, -50%)',
-            'z-index:2147483647',
-            'max-width:min(90vw,560px)',
-            'padding:12px 16px',
-            'border:1px solid #9147ff',
-            'border-radius:8px',
-            'background:#18181b',
-            'color:#efeff1',
-            'font-family:"Inter",Roobert,Helvetica,Arial,sans-serif',
-            'font-size:14px',
-            'font-weight:600',
-            'line-height:1.4',
-            'text-align:center',
-            'box-shadow:0 6px 24px rgba(0,0,0,.5)',
-            'opacity:0',
-            'transition:opacity .2s ease'
-        ].join(';');
+    function startReloadCountdown() {
+        if (reloadCountdownTimer) return;
+        reloadCountdownValue = RELOAD_COUNTDOWN_SECONDS;
+        updateReloadStatus('Seite wird neu geladen in <strong>' + reloadCountdownValue + '</strong>');
 
-        document.body.appendChild(notice);
-        requestAnimationFrame(() => { notice.style.opacity = '1'; });
-
-        setTimeout(() => {
-            notice.style.opacity = '0';
-            setTimeout(() => notice.remove(), 250);
-        }, DURATION);
+        reloadCountdownTimer = setInterval(function() {
+            reloadCountdownValue -= 1;
+            if (reloadCountdownValue <= 0) {
+                clearInterval(reloadCountdownTimer);
+                reloadCountdownTimer = null;
+                updateReloadStatus('Seite wird neu geladen ...');
+                location.reload();
+                return;
+            }
+            updateReloadStatus('Seite wird neu geladen in <strong>' + reloadCountdownValue + '</strong>');
+        }, 1000);
     }
 
     function promptReload() {
-        // Beide Skriptteile hooken sich bei document-start ein; ein nachträgliches
-        // Umschalten kann nicht rückwirkend rückgängig gemacht werden. Ein Reload
-        // sorgt für einen saubereren Zustand mit der neuen Einstellung.
-        if (window.__ttReloadPromptShown) return;
-        window.__ttReloadPromptShown = true;
-        setTimeout(function() {
-            const reload = confirm('Twitch SlipStream: Einstellung geändert. Seite jetzt neu laden, damit sie wirkt?');
-            if (reload) location.reload();
-            window.__ttReloadPromptShown = false;
-        }, 50);
+        // Nach jeder Benutzeraktion beginnt zunächst ein 3-Sekunden-Cooldown.
+        // Kommt in dieser Zeit eine weitere Änderung, wird der Cooldown komplett
+        // zurückgesetzt. Erst wenn 3 Sekunden lang nichts mehr geändert wurde,
+        // startet der sichtbare 5-Sekunden-Reload-Countdown.
+        if (reloadCooldownTimer) {
+            clearTimeout(reloadCooldownTimer);
+            reloadCooldownTimer = null;
+        }
+        if (reloadCountdownTimer) {
+            clearInterval(reloadCountdownTimer);
+            reloadCountdownTimer = null;
+        }
+
+        reloadCountdownValue = 0;
+        updateReloadStatus('Seite wird aktualisiert ...');
+
+        reloadCooldownTimer = setTimeout(function() {
+            reloadCooldownTimer = null;
+            startReloadCountdown();
+        }, RELOAD_ACTION_COOLDOWN_MS);
     }
 
     function init() {
