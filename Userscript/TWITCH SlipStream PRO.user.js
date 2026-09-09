@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TWITCH SlipStream PRO
 // @namespace    https://github.com/hoernzilla/SlipStream-UserScript/
-// @version      32.21.7
+// @version      32.25.0
 // @description  "Twitch AD-Blocker" & "SUB-Only VOD Bypass"
 // @author       BjOOgle
 // @updateURL    https://github.com/hoernzilla/SlipStream-UserScript/blob/main/Userscript/TWITCH%20SlipStream%20PRO.user.js
@@ -47,7 +47,7 @@
     let reloadCountdownTimer = null;
     let reloadCountdownValue = 0;
     const RELOAD_ACTION_COOLDOWN_MS = 3000;
-    const RELOAD_COUNTDOWN_SECONDS = 5;
+    const RELOAD_COUNTDOWN_SECONDS = 3;
 
     function loadSettings() {
         try {
@@ -730,7 +730,7 @@
         }
 
         reloadCountdownValue = 0;
-        updateReloadStatus('Seite wird aktualisiert ...');
+        updateReloadStatus('Änderungen wurden übernommen ...');
 
         reloadCooldownTimer = setTimeout(function() {
             reloadCooldownTimer = null;
