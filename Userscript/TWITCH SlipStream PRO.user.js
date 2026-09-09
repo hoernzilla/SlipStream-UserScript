@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TWITCH SlipStream PRO
 // @namespace    https://github.com/hoernzilla/SlipStream-UserScript/
-// @version      32.11.2
+// @version      32.21.5
 // @description  "Twitch AD-Blocker" & "SUB-Only VOD Bypass"
 // @author       BjOOgle
 // @updateURL    https://github.com/hoernzilla/SlipStream-UserScript/blob/main/Userscript/TWITCH%20SlipStream%20PRO-32.10.1.user.js
@@ -30,7 +30,13 @@
     const HOLD_TO_DRAG_MS = 450;
     const GEAR_SIZE = 40;
     const VIEWPORT_MARGIN = 8;
-    const DEFAULTS = { adBlockEnabled: true, vodYoinkEnabled: true, playVodEnabled: true };
+    const DEFAULTS = { adBlockEnabled: true, vodYoinkEnabled: true, playVodEnabled: false };
+    // Regeln:
+    // - VOD1 darf mit dem Werbeblocker laufen.
+    // - VOD1 und VOD2 dürfen nie gleichzeitig aktiv sein.
+    // - VOD2 darf nicht mit dem Werbeblocker laufen.
+    // - Beim Aktivieren von VOD2 werden VOD1 und Werbeblocker automatisch deaktiviert.
+    // - Beim Aktivieren des Werbeblockers wird VOD2 automatisch deaktiviert.
     // Invariant: vodYoinkEnabled und playVodEnabled dürfen nie gleichzeitig true sein.
     const DEFAULT_UI_STATE = { menuOpen: false, position: null };
     const tabId = String(Date.now()) + ':' + Math.random().toString(36).slice(2);
@@ -43,9 +49,10 @@
             const raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) return Object.assign({}, DEFAULTS);
             const parsed = Object.assign({}, DEFAULTS, JSON.parse(raw));
-            // Repariere alte/ungültige Zustände mit beiden VOD-Modi aktiv.
-            if (parsed.vodYoinkEnabled && parsed.playVodEnabled) {
-                parsed.playVodEnabled = false;
+            // Ungültige gespeicherte Kombinationen korrigieren.
+            if (parsed.playVodEnabled) {
+                parsed.vodYoinkEnabled = false;
+                parsed.adBlockEnabled = false;
             }
             return parsed;
         } catch (e) {
@@ -107,6 +114,20 @@
 
     function setSetting(key, value) {
         settings[key] = value;
+
+        // Zentrale Konsistenzregeln:
+        // VOD2 => VOD1 AUS + Werbeblocker AUS.
+        // VOD1 => VOD2 AUS; Werbeblocker bleibt unverändert.
+        // Werbeblocker => VOD2 AUS; VOD1 bleibt unverändert.
+        if (key === 'playVodEnabled' && settings.playVodEnabled) {
+            settings.vodYoinkEnabled = false;
+            settings.adBlockEnabled = false;
+        } else if (key === 'vodYoinkEnabled' && settings.vodYoinkEnabled) {
+            settings.playVodEnabled = false;
+        } else if (key === 'adBlockEnabled' && settings.adBlockEnabled) {
+            settings.playVodEnabled = false;
+        }
+
         saveSettings(settings);
         updateSettingsControls();
         broadcast('settings', Object.assign({}, settings));
@@ -115,8 +136,10 @@
     function applyIncomingSettings(nextSettings) {
         if (!nextSettings || typeof nextSettings !== 'object') return;
         Object.assign(settings, DEFAULTS, nextSettings);
-        if (settings.vodYoinkEnabled && settings.playVodEnabled) {
-            settings.playVodEnabled = false;
+        // VOD2 ist auch tabübergreifend exklusiv.
+        if (settings.playVodEnabled) {
+            settings.vodYoinkEnabled = false;
+            settings.adBlockEnabled = false;
         }
         updateSettingsControls();
     }
@@ -212,6 +235,72 @@
                 border-bottom: 1px solid #2f2f35;
                 color: #efeff1;
             }
+            #tt-help-btn {
+                width: 20px;
+                height: 20px;
+                flex: 0 0 20px;
+                margin-left: 8px;
+                border: 1px solid #3a3a3d;
+                border-radius: 50%;
+                background: #26262c;
+                color: #efeff1;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                cursor: help;
+                font-size: 12px;
+                font-weight: 700;
+                line-height: 1;
+                user-select: none;
+            }
+            #tt-help-btn:hover,
+            #tt-help-btn:focus-visible {
+                border-color: #9147ff;
+                color: #9147ff;
+                outline: none;
+            }
+            #tt-help-popup {
+                position: fixed;
+                width: 300px;
+                max-width: min(300px, calc(100vw - 20px));
+                padding: 12px 14px;
+                box-sizing: border-box;
+                background: #18181b;
+                border: 1px solid #3a3a3d;
+                border-radius: 8px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+                z-index: 2147483001;
+                font-family: "Inter", Roobert, Helvetica, Arial, sans-serif;
+                color: #efeff1;
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 1.45;
+                display: none;
+            }
+            #tt-help-popup.tt-help-visible {
+                display: block;
+            }
+            #tt-help-popup strong {
+                font-weight: 700;
+                color: #efeff1;
+            }
+            #tt-help-popup .tt-help-title {
+                margin-bottom: 7px;
+                font-size: 13px;
+                font-weight: 700;
+            }
+            #tt-help-popup .tt-help-row {
+                margin-bottom: 7px;
+            }
+            #tt-help-popup .tt-help-row:last-child {
+                margin-bottom: 0;
+            }
+            #tt-help-popup .tt-help-note {
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px solid #2f2f35;
+                color: #adadb8;
+            }
             #tt-panel .tt-row {
                 display: flex;
                 align-items: center;
@@ -282,7 +371,10 @@
         const panel = document.createElement('div');
         panel.id = 'tt-panel';
         panel.innerHTML =
-            '<div class="tt-header">Twitch SlipStream</div>' +
+            '<div class="tt-header" style="display:flex;align-items:center;justify-content:space-between;">' +
+                '<span>Twitch SlipStream</span>' +
+                '<button type="button" id="tt-help-btn" aria-label="Schalter-Regeln">?</button>' +
+            '</div>' +
             '<div class="tt-row">' +
                 '<span class="tt-label">Werbeblocker</span>' +
                 '<label class="tt-switch">' +
@@ -291,14 +383,14 @@
                 '</label>' +
             '</div>' +
             '<div class="tt-row">' +
-                '<span class="tt-label">Unlock Sub-VOD #1</span>' +
+                '<span class="tt-label">VOD #1</span>' +
                 '<label class="tt-switch">' +
                     '<input type="checkbox" id="tt-toggle-yoink" ' + (settings.vodYoinkEnabled ? 'checked' : '') + '>' +
                     '<span class="tt-slider"></span>' +
                 '</label>' +
             '</div>' +
             '<div class="tt-row">' +
-                '<span class="tt-label">Unlock Sub-VOD #2</span>' +
+                '<span class="tt-label">VOD #2</span>' +
                 '<label class="tt-switch">' +
                     '<input type="checkbox" id="tt-toggle-playvod" ' + (settings.playVodEnabled ? 'checked' : '') + '>' +
                     '<span class="tt-slider"></span>' +
@@ -306,11 +398,95 @@
             '</div>' +
             '<div class="tt-footer">Änderungen wirken nach Neuladen der Seite.</div>';
 
+        const helpPopup = document.createElement('div');
+        helpPopup.id = 'tt-help-popup';
+        helpPopup.innerHTML =
+            '<div class="tt-help-title">Welche funktionen sind enthalten?</div>' +
+            '<div class="tt-help-title">------------------------------------------</div>' +
+            '<div class="tt-help-row"><strong>Werbeblocker - </strong>Blockt jegliche Werbung!</div>' +
+            '<div class="tt-help-row"><strong>VOD1 - </strong>ABO Locked VODs freischalten!</div>' +
+            '<div class="tt-help-row"><strong>VOD2 - </strong>ABO Locked VODs freischalten!</div>' +
+            '<div class="tt-help-title">                                          </div>' +
+            '<div class="tt-help-title">------------------------------------------</div>' +
+            '<div class="tt-help-title">                                          </div>' +
+            '<div class="tt-help-title">Erklärung der Schalter regelung:</div>' +
+            '<div class="tt-help-title">------------------------------------------</div>' +
+            '<div class="tt-help-row"><strong>Werbeblocker und VOD1</strong> können gemeinsam oder einzeln genutzt werden.</div>' +
+            '<div class="tt-help-row"><strong>VOD2</strong> kann nur alleine verwendet werden, da die Kombination mit den anderen Funktionen die Funktionalität des Skripts beeinträchtigt.</div>' +
+            '<div class="tt-help-row"><strong>Wird VOD2 aktiviert</strong>, werden Werbeblocker und VOD1 automatisch deaktiviert.</div>';
+
         document.body.appendChild(gear);
         document.body.appendChild(panel);
+        document.body.appendChild(helpPopup);
 
-        ui = { gear: gear, panel: panel };
+        ui = { gear: gear, panel: panel, helpBtn: panel.querySelector('#tt-help-btn'), helpPopup: helpPopup };
         applyUiState();
+
+        function positionHelpPopup() {
+            if (!ui.helpPopup || !ui.helpBtn) return;
+
+            const btnRect = ui.helpBtn.getBoundingClientRect();
+            const popup = ui.helpPopup;
+            const popupWidth = Math.min(300, Math.max(220, window.innerWidth - 20));
+            const gap = 8;
+            const minMargin = 10;
+
+            popup.style.width = popupWidth + 'px';
+            popup.style.left = '0px';
+            popup.style.top = '0px';
+
+            // Temporarily show the popup so its actual height can be measured.
+            const wasVisible = popup.classList.contains('tt-help-visible');
+            if (!wasVisible) popup.classList.add('tt-help-visible');
+            const popupRect = popup.getBoundingClientRect();
+            const popupHeight = popupRect.height;
+
+            // Open away from the side where the control center sits.
+            const panelRect = panel.getBoundingClientRect();
+            const spaceRight = window.innerWidth - panelRect.right;
+            const openRight = spaceRight >= popupWidth + gap || panelRect.left < popupWidth + gap;
+
+            let left = openRight
+                ? btnRect.right + gap
+                : btnRect.left - popupWidth - gap;
+
+            // Keep the popup inside the viewport.
+            left = Math.max(minMargin, Math.min(left, window.innerWidth - popupWidth - minMargin));
+
+            let top = btnRect.top;
+            if (top + popupHeight > window.innerHeight - minMargin) {
+                top = window.innerHeight - popupHeight - minMargin;
+            }
+            top = Math.max(minMargin, top);
+
+            popup.style.left = Math.round(left) + 'px';
+            popup.style.top = Math.round(top) + 'px';
+
+            if (!wasVisible) popup.classList.remove('tt-help-visible');
+        }
+
+        function showHelpPopup() {
+            positionHelpPopup();
+            helpPopup.classList.add('tt-help-visible');
+            positionHelpPopup();
+        }
+
+        function hideHelpPopup() {
+            helpPopup.classList.remove('tt-help-visible');
+        }
+
+        const helpBtn = panel.querySelector('#tt-help-btn');
+        helpBtn.addEventListener('mouseenter', showHelpPopup);
+        helpBtn.addEventListener('mouseleave', hideHelpPopup);
+        helpBtn.addEventListener('focus', showHelpPopup);
+        helpBtn.addEventListener('blur', hideHelpPopup);
+
+        helpPopup.addEventListener('mouseenter', showHelpPopup);
+        helpPopup.addEventListener('mouseleave', hideHelpPopup);
+
+        window.addEventListener('resize', function() {
+            if (helpPopup.classList.contains('tt-help-visible')) positionHelpPopup();
+        });
 
         gear.addEventListener('click', function() {
             if (dragState.suppressClick) return;
@@ -370,30 +546,39 @@
         gear.addEventListener('pointercancel', stopDragging);
 
         panel.querySelector('#tt-toggle-adblock').addEventListener('change', function(e) {
-            setSetting('adBlockEnabled', e.target.checked);
-            promptReload();
-        });
-        panel.querySelector('#tt-toggle-yoink').addEventListener('change', function(e) {
-            if (e.target.checked) {
-                // VOD Freischaltung und PlayVod dürfen nicht gleichzeitig aktiv sein.
-                setSetting('vodYoinkEnabled', true);
+            if (e.target.checked && settings.playVodEnabled) {
+                // Der zuletzt aktivierte Modus gewinnt:
+                // Werbeblocker AN => VOD2 AUS.
+                setSetting('adBlockEnabled', true);
                 setSetting('playVodEnabled', false);
-                showMutualExclusionNotice('VOD Freischaltung aktiviert – PlayVod wurde automatisch deaktiviert.');
+                showMutualExclusionNotice('Der Werbeblocker wurde aktiviert – VOD2 wurde automatisch deaktiviert.');
             } else {
-                setSetting('vodYoinkEnabled', false);
-                // Kein Gegentausch beim Deaktivieren: beide dürfen AUS sein.
+                setSetting('adBlockEnabled', e.target.checked);
             }
             promptReload();
         });
+
+        panel.querySelector('#tt-toggle-yoink').addEventListener('change', function(e) {
+            if (e.target.checked) {
+                // VOD1 darf mit dem Werbeblocker laufen, aber nicht mit VOD2.
+                setSetting('vodYoinkEnabled', true);
+                setSetting('playVodEnabled', false);
+                showMutualExclusionNotice('VOD1 aktiviert – VOD2 wurde automatisch deaktiviert. Der Werbeblocker bleibt aktiv.');
+            } else {
+                setSetting('vodYoinkEnabled', false);
+            }
+            promptReload();
+        });
+
         panel.querySelector('#tt-toggle-playvod').addEventListener('change', function(e) {
             if (e.target.checked) {
-                // VOD Freischaltung und PlayVod dürfen nicht gleichzeitig aktiv sein.
+                // VOD2 ist exklusiv: VOD1 UND Werbeblocker müssen aus sein.
                 setSetting('playVodEnabled', true);
                 setSetting('vodYoinkEnabled', false);
-                showMutualExclusionNotice('PlayVod aktiviert – VOD Freischaltung wurde automatisch deaktiviert.');
+                setSetting('adBlockEnabled', false);
+                showMutualExclusionNotice('VOD2 darf nur alleine verwendet werden – VOD1 und Werbeblocker wurden automatisch deaktiviert.');
             } else {
                 setSetting('playVodEnabled', false);
-                // Kein Gegentausch beim Deaktivieren: beide dürfen AUS sein.
             }
             promptReload();
         });
@@ -434,6 +619,13 @@
         }
         panel.classList.toggle('tt-open', uiState.menuOpen);
         gear.classList.toggle('tt-open', uiState.menuOpen);
+
+        if (ui.helpPopup && !uiState.menuOpen) {
+            ui.helpPopup.classList.remove('tt-help-visible');
+        }
+        if (ui.helpPopup && ui.helpPopup.classList.contains('tt-help-visible')) {
+            positionHelpPopup();
+        }
     }
 
     function setupSynchronization() {
@@ -471,8 +663,8 @@
         notice.style.cssText = [
             'position:fixed',
             'left:50%',
-            'top:24px',
-            'transform:translateX(-50%)',
+            'top:50%',
+            'transform:translate(-50%, -50%)',
             'z-index:2147483647',
             'max-width:min(90vw,560px)',
             'padding:12px 16px',
